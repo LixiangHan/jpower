@@ -1,11 +1,11 @@
 #include "jpower.h"
 
 
-int readfile(const char* filename) {
+int readfile(const char *filename) {
     FILE *fptr;
     fptr = fopen(filename, "r");
     if (fptr == NULL) {
-        printf("Error in opening file: %s\n", filename);
+        printf("Fail to open file: %s.\n", filename);
         return -1;
     }
     char reading[16];
@@ -15,11 +15,10 @@ int readfile(const char* filename) {
     }
     else {
         fclose(fptr);
-        printf("Error in reading file: %s\n", filename);
+        printf("Fail to read file: %s.\n", filename);
         return -1;
     }
 }
-
 
 int64_t gettime_us() {
     struct timespec ts;
@@ -31,4 +30,47 @@ float getpower_w() {
     int curr = readfile(kCurrFile);
     int volt = readfile(kVoltFile);
     return curr * volt / 1000000.;
+}
+
+void start_monitor(jpower_t *jpower, const char *logfile, int64_t interval_us) {
+    jpower->log_fptr = fopen(logfile, "w");
+    if (jpower->log_fptr == NULL) {
+        printf("Fail to open file: %s.\n", logfile);
+    }
+    jpower->interval_us = interval_us;
+    atomic_store(&(jpower->running), true);
+    int ret = pthread_create(&(jpower->monitor_thread), NULL, (void *)&monitor_thread_func, (jpower_t *)jpower);
+    if(0 != ret)
+        printf("Fail to create monitor thread.\n");
+}
+
+void monitor_thread_func(jpower_t *jpower) {
+    char buffer[BUFFER_SIZE + 64];
+    int buffer_count = 0;
+    int64_t timestamp = 0;
+    float power = 0;
+    while (true == atomic_load(&(jpower->running))) {
+        timestamp = gettime_us();
+        power = getpower_w();
+        buffer_count += sprintf(&buffer[buffer_count], "%ld, %.2f\n", timestamp, power);
+        if (buffer_count >= BUFFER_SIZE) {
+            fwrite(buffer, BUFFER_SIZE, 1, jpower->log_fptr);
+            buffer_count -= BUFFER_SIZE;
+            memcpy(buffer, &buffer[BUFFER_SIZE], buffer_count) ;
+        }
+        else
+        {
+            usleep(jpower->interval_us);
+        }
+    }
+    if(buffer_count > 0 )
+    {
+        fwrite(buffer, 1, buffer_count, jpower->log_fptr) ;    
+    }
+}
+
+void end_monitor(jpower_t *jpower) {
+    atomic_store(&(jpower->running), false);
+    pthread_join(jpower->monitor_thread, NULL);
+    fclose(jpower->log_fptr);
 }

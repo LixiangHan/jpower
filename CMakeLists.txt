@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
 project(jpower)
 
+set(CMAKE_C_FLAGS "-pthread -std=gnu99")
+
 include_directories(${PROJECT_SOURCE_DIR}/src/include)
 file(GLOB SOURCES ${PROJECT_SOURCE_DIR}/src/*.c)
 

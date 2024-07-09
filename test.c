@@ -6,4 +6,9 @@ int main() {
     printf("Timestamp = %ld\n", gettime_us());
     printf("Voltage = %d mV\n", readfile(filename));
     printf("Power = %.2f W\n", getpower_w());
+
+    jpower_t jpower;
+    start_monitor(&jpower, "test.log", 100);
+    usleep(1000 * 1000);
+    end_monitor(&jpower);
 }
