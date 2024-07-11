@@ -33,6 +33,15 @@ float getpower_w() {
 }
 
 void start_monitor(jpower_t *jpower, const char *logfile, int64_t interval_us) {
+    jpower->curr_fd = open(kCurrFile, O_RDONLY | O_NONBLOCK);
+    if (jpower->curr_fd < 0) {
+        printf("Fail to open file: %s.\n", kCurrFile);
+    }
+    jpower->volt_fd = open(kVoltFile, O_RDONLY | O_NONBLOCK);
+    if (jpower->curr_fd < 0) {
+        printf("Fail to open file: %s.\n", kVoltFile);
+    }
+
     jpower->log_fptr = fopen(logfile, "w");
     if (jpower->log_fptr == NULL) {
         printf("Fail to open file: %s.\n", logfile);
@@ -49,10 +58,24 @@ void monitor_thread_func(jpower_t *jpower) {
     int buffer_count = 0;
     int64_t timestamp = 0;
     float power = 0;
+    char volt_c[16], curr_c[16];
+    int volt_i, curr_i;
     while (true == atomic_load(&(jpower->running))) {
         timestamp = gettime_us();
-        power = getpower_w();
+        // power = getpower_w();
+
+        lseek(jpower->curr_fd, 0, 0);
+        read(jpower->curr_fd, curr_c, sizeof(curr_c) - 1);
+        curr_i = strtod(curr_c, NULL);
+        
+        lseek(jpower->volt_fd, 0, 0);
+        read(jpower->volt_fd, volt_c, sizeof(volt_c) - 1);
+        volt_i = strtod(volt_c, NULL);
+
+        power = volt_i * curr_i / 1000000.;
+
         buffer_count += sprintf(&buffer[buffer_count], "%ld, %.2f\n", timestamp, power);
+        // buffer_count += sprintf(&buffer[buffer_count], "%ld, %s, %s\n", timestamp, volt_c, curr_c);
         if (buffer_count >= BUFFER_SIZE) {
             fwrite(buffer, BUFFER_SIZE, 1, jpower->log_fptr);
             buffer_count -= BUFFER_SIZE;
@@ -60,7 +83,7 @@ void monitor_thread_func(jpower_t *jpower) {
         }
         else
         {
-            usleep(jpower->interval_us);
+            // usleep(jpower->interval_us);
         }
     }
     if(buffer_count > 0 )

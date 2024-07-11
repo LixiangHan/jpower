@@ -20,10 +20,13 @@ static const char kCurrFile[] = "/sys/bus/i2c/drivers/ina3221/7-0040/hwmon/hwmon
 static const char kVoltFile[] = "/sys/bus/i2c/drivers/ina3221/7-0040/hwmon/hwmon5/in1_input";
 
 typedef struct {
-    atomic_bool running;
+    int curr_fd;
+    int volt_fd;
     int64_t interval_us;
-    pthread_t monitor_thread;
     FILE *log_fptr;
+    
+    atomic_bool running;
+    pthread_t monitor_thread;
 } jpower_t;
 
 int readfile(const char *filename);

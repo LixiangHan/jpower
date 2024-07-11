@@ -8,7 +8,9 @@ int main() {
     printf("Power = %.2f W\n", getpower_w());
 
     jpower_t jpower;
-    start_monitor(&jpower, "test.log", 100);
+    start_monitor(&jpower, "test.log", 0);
     usleep(1000 * 1000);
     end_monitor(&jpower);
+
+    return 0;
 }
